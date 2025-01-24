@@ -11,6 +11,7 @@ usage() {
     echo "  -s, --source-repo <owner/repo>   Specify source repository"
     echo "  -d, --dest-repo <owner/repo>     Specify destination repository"
     echo "  -r, --relationship              Create parent-child relationship"
+    echo "  -q, --quiet                     Quiet mode - suppress non-essential output"
     echo "Examples:"
     echo "  $0 123"
     echo "  $0 123 -s owner/repo -d owner/another-repo"
@@ -20,6 +21,7 @@ usage() {
 
 # Default flags
 CREATE_RELATIONSHIP=false
+QUIET_MODE=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -r|--relationship)
             CREATE_RELATIONSHIP=true
+            shift
+            ;;
+        -q|--quiet)
+            QUIET_MODE=true
             shift
             ;;
         -*)
@@ -51,11 +57,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Modify echo statements to use a log function
+log() {
+    if [ "$QUIET_MODE" = false ]; then
+        echo "$@"
+    fi
+}
+
 # Check if issue number is provided
 if [ -z "$ISSUE_NUMBER" ]; then
-    echo "No issue number provided. Using hardcoded repositories."
-    echo "Source Repository: $SOURCE_REPO"
-    echo "Destination Repository: $DEST_REPO"
+    log "No issue number provided. Using hardcoded repositories."
+    log "Source Repository: $SOURCE_REPO"
+    log "Destination Repository: $DEST_REPO"
     read -p "Enter the issue number: " ISSUE_NUMBER
 fi
 
@@ -76,7 +89,7 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-echo "Copying issue #$ISSUE_NUMBER from $SOURCE_REPO to $DEST_REPO..."
+log "Copying issue #$ISSUE_NUMBER from $SOURCE_REPO to $DEST_REPO..."
 
 # Get full issue data including comments
 issue_data=$(gh issue view $ISSUE_NUMBER -R $SOURCE_REPO --json title,body,labels,assignees,comments)
@@ -94,7 +107,7 @@ title=$(echo "$issue_data" | jq -r .title)
 body=$(echo "$issue_data" | jq -r .body)
 
 # Handle labels
-echo "Processing labels..."
+log "Processing labels..."
 
 # Get list of existing labels in destination repo (fetch all pages)
 existing_labels=$(gh label list -R $DEST_REPO --json name --limit 1000 | jq -r '.[].name')
@@ -114,11 +127,11 @@ while IFS= read -r name; do
         name=$(normalize "$name")
         # Check if label exists in destination
         if ! echo "$existing_labels" | tr '[:upper:]' '[:lower:]' | grep -q "^$(normalize "$name")$"; then
-            echo "Creating missing label: $name"
+            log "Creating missing label: $name"
             # Create label with default color (using gray as fallback)
             gh label create "$name" -R $DEST_REPO --color "cccccc" >/dev/null 2>&1 || echo "Failed to create label: $name"
         else
-            echo "Label already exists: $name"
+            log "Label already exists: $name"
         fi
         label_names+=("$name")
     fi
@@ -139,7 +152,7 @@ $comments_text
 *Copied from original issue: $SOURCE_URL*"
 
 # Create new issue with extracted data
-echo "Creating new issue in $DEST_REPO..."
+log "Creating new issue in $DEST_REPO..."
 new_issue_url=$(gh issue create -R $DEST_REPO \
     --title "$title" \
     --body "$new_body" | grep -Eo 'https://github.com/[^ ]+')
@@ -153,12 +166,12 @@ fi
 
 # Add labels to the newly created issue
 for label in "${label_names[@]}"; do
-    echo "Adding label: $label"
+    log "Adding label: $label"
     gh issue edit "$new_issue_url" -R $DEST_REPO --add-label "$label" >/dev/null 2>&1 || echo "Failed to add label: $label"
 done
 
 if [ $? -eq 0 ]; then
-    echo "Successfully added labels to the issue!"
+    log "Successfully added labels to the issue!"
 else
     echo "Error: Failed to add some labels"
 fi
@@ -170,7 +183,7 @@ if [ "$CREATE_RELATIONSHIP" = true ]; then
     DEST_ISSUE_NUMBER=$(echo "$new_issue_url" | grep -o '[0-9]*$')
 
     # Get the GraphQL Node IDs for the source and destination issues
-    echo "Fetching Node IDs for the source and destination issues..."
+    log "Fetching Node IDs for the source and destination issues..."
     SOURCE_NODE_ID=$(gh api graphql -F query='
       query ($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -198,7 +211,7 @@ if [ "$CREATE_RELATIONSHIP" = true ]; then
        -q '.data.repository.issue.id')
 
     # Add the relationship to the relationships section
-    echo "Setting parent relationship..."
+    log "Setting parent relationship..."
     gh api graphql -f query='
       mutation {
         addSubIssue(input: {

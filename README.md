@@ -35,10 +35,20 @@ Make sure you have run `gh auth login` and have the correct permissions to creat
 ./github-issue-copy.sh 123 -s owner/source -d owner/dest -r
 ```
 
+### Quiet Mode
+```bash
+# Suppress non-essential output
+./github-issue-copy.sh 123 -q
+
+# Can be combined with other options
+./github-issue-copy.sh 123 -s owner/source -d owner/dest -r -q
+```
+
 ## Options
 - `-s, --source-repo`: Specify source repository
 - `-d, --dest-repo`: Specify destination repository
 - `-r, --relationship`: Create parent-child issue relationship
+- `-q, --quiet`: Suppress non-essential output, showing only errors and final results
 
 ## Prerequisites
 - GitHub CLI (`gh`)
