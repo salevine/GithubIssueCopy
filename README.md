@@ -6,6 +6,9 @@ In addition, the script allows for creating a parent-child relationship between 
 
 ## Usage
 
+Make sure you have run `gh auth login` and have the correct permissions to create issues in the destination repository.
+
+
 ### Basic Copy
 ```bash
 ./github-issue-copy.sh 123
@@ -40,3 +43,8 @@ In addition, the script allows for creating a parent-child relationship between 
 ## Prerequisites
 - GitHub CLI (`gh`)
 - `jq`
+
+## Notes
+- The script will prompt for the issue number if not provided as an argument.
+- The script will prompt for the source and destination repositories if not provided as arguments.
+- The script will prompt for the issue number if not provided as an argument.
